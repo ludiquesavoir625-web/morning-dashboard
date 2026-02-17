@@ -3,6 +3,7 @@
  *
  * 기상청 + 에어코리아 API를 주기적으로 호출하고,
  * 코디 추천과 체크리스트를 자동으로 갱신합니다.
+ * API 실패 시 데모 데이터로 폴백합니다.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -17,8 +18,71 @@ import { generateOutfitCards } from '../services/outfitEngine';
 import { generateChecklist } from '../services/checklistEngine';
 import { REFRESH_INTERVAL } from '../constants/config';
 import { DEFAULT_GRID } from '../utils/gridCoord';
+import { getDayName, toYYYYMMDD, addDays } from '../utils/dateUtils';
 import type { CurrentWeather, DailyWeather, AirQuality, YesterdayComparison } from '../types/weather';
 import type { OutfitCard, ChecklistItem } from '../types/outfit';
+
+// ─── 데모 데이터 (API 실패 시 사용) ──────────────────────────────
+
+function getDemoData() {
+  const today = new Date();
+  const month = today.getMonth() + 1;
+
+  // 계절에 따른 기본 기온 설정
+  let baseTemp: number;
+  if (month >= 3 && month <= 5) baseTemp = 12;       // 봄
+  else if (month >= 6 && month <= 8) baseTemp = 27;   // 여름
+  else if (month >= 9 && month <= 11) baseTemp = 14;  // 가을
+  else baseTemp = -2;                                  // 겨울
+
+  const demoCurrent: CurrentWeather = {
+    temperature: baseTemp,
+    feelsLike: baseTemp - 3,
+    tempMax: baseTemp + 5,
+    tempMin: baseTemp - 4,
+    sky: 'partly_cloudy',
+    precipType: 'none',
+    precipProb: 20,
+    humidity: 55,
+    windSpeed: 2.5,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const demoAir: AirQuality = {
+    pm10Value: 45,
+    pm10Grade: 'moderate',
+    pm25Value: 22,
+    pm25Grade: 'moderate',
+    stationName: '서울 (데모)',
+    updatedAt: new Date().toISOString(),
+  };
+
+  const demoWeekly: DailyWeather[] = [];
+  for (let d = -1; d <= 5; d++) {
+    const date = addDays(today, d);
+    const variation = Math.round(Math.sin(d) * 3);
+    demoWeekly.push({
+      date: toYYYYMMDD(date),
+      dayOfWeek: getDayName(date),
+      tempMax: baseTemp + 5 + variation,
+      tempMin: baseTemp - 4 + variation,
+      sky: d % 3 === 0 ? 'clear' : 'partly_cloudy',
+      precipType: 'none',
+      precipProb: d === 2 ? 60 : 10,
+      isToday: d === 0,
+      isYesterday: d === -1,
+    });
+  }
+
+  const demoYesterday: YesterdayComparison = {
+    tempDiff: 2,
+    message: '어제보다 2° 높아요',
+  };
+
+  return { demoCurrent, demoAir, demoWeekly, demoYesterday };
+}
+
+// ─── 메인 훅 ────────────────────────────────────────────────────
 
 interface WeatherState {
   current: CurrentWeather | null;
@@ -29,6 +93,7 @@ interface WeatherState {
   checklist: ChecklistItem[];
   isLoading: boolean;
   error: string | null;
+  isDemo: boolean;
   lastUpdated: Date | null;
 }
 
@@ -42,6 +107,7 @@ export function useWeatherData() {
     checklist: [],
     isLoading: true,
     error: null,
+    isDemo: false,
     lastUpdated: null,
   });
 
@@ -80,15 +146,29 @@ export function useWeatherData() {
         checklist,
         isLoading: false,
         error: null,
+        isDemo: false,
         lastUpdated: new Date(),
       });
     } catch (err) {
       console.error('데이터 로드 실패:', err);
-      setState(prev => ({
-        ...prev,
+
+      // API 실패 시 데모 데이터로 폴백
+      const { demoCurrent, demoAir, demoWeekly, demoYesterday } = getDemoData();
+      const outfitCards = generateOutfitCards(demoCurrent, demoAir);
+      const checklist = generateChecklist(demoCurrent, demoAir);
+
+      setState({
+        current: demoCurrent,
+        weekly: demoWeekly,
+        airQuality: demoAir,
+        yesterday: demoYesterday,
+        outfitCards,
+        checklist,
         isLoading: false,
         error: err instanceof Error ? err.message : '데이터를 불러오지 못했습니다.',
-      }));
+        isDemo: true,
+        lastUpdated: new Date(),
+      });
     }
   }, []);
 

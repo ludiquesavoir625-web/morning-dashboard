@@ -81,23 +81,29 @@ interface MidLandItem {
 // ─── 공통 fetch 함수 ────────────────────────────────────────────
 
 async function fetchKma(url: string, params: Record<string, string>): Promise<KmaResponse> {
-  const query = new URLSearchParams({
-    serviceKey: API_KEYS.weather,
-    dataType: 'JSON',
-    ...params,
-  }).toString();
-
-  // 기상청 API는 serviceKey를 decoding 해서 보내야 하는 경우가 있어
-  // URLSearchParams가 자동 인코딩하므로 직접 조합
-  const fullUrl = `${url}?serviceKey=${encodeURIComponent(API_KEYS.weather)}&dataType=JSON&${new URLSearchParams(
-    Object.fromEntries(Object.entries(params))
-  ).toString()}`;
+  // 공공데이터포털 API는 serviceKey를 인코딩하지 않고 그대로 전달해야 함
+  const queryParts = Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join('&');
+  const fullUrl = `${url}?serviceKey=${API_KEYS.weather}&dataType=JSON&${queryParts}`;
 
   const response = await fetch(fullUrl);
-  if (!response.ok) {
-    throw new Error(`기상청 API 오류: ${response.status}`);
+
+  // 응답이 JSON이 아닌 경우 (HTML 에러 페이지 등) 처리
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text);
+    // 기상청 API는 200을 반환하면서 에러 코드를 보내는 경우가 있음
+    if (data.response?.header?.resultCode !== '00') {
+      throw new Error(`기상청 API 응답 오류: ${data.response?.header?.resultMsg ?? '알 수 없는 오류'}`);
+    }
+    return data;
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      throw new Error(`기상청 API 오류: 응답이 올바르지 않습니다 (HTTP ${response.status})`);
+    }
+    throw e;
   }
-  return response.json();
 }
 
 // ─── 코드 → 타입 변환 ──────────────────────────────────────────
@@ -365,14 +371,14 @@ export async function fetchMidForecast(): Promise<MidForecastDay[]> {
       ? toYYYYMMDD(now) + '0600'
       : toYYYYMMDD(now) + '1800';
 
-  // 중기기온예보
-  const taUrl = `${WEATHER_API.midTa}?serviceKey=${encodeURIComponent(API_KEYS.weather)}&dataType=JSON&regId=${MID_FORECAST_REGION.taRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
+  // 중기기온예보 (serviceKey 인코딩 없이 전달)
+  const taUrl = `${WEATHER_API.midTa}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.taRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
   const taRes = await fetch(taUrl);
   const taData: MidTaResponse = await taRes.json();
   const taItem = taData.response.body?.items?.item?.[0];
 
-  // 중기육상예보
-  const landUrl = `${WEATHER_API.midLandFcst}?serviceKey=${encodeURIComponent(API_KEYS.weather)}&dataType=JSON&regId=${MID_FORECAST_REGION.landRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
+  // 중기육상예보 (serviceKey 인코딩 없이 전달)
+  const landUrl = `${WEATHER_API.midLandFcst}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.landRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
   const landRes = await fetch(landUrl);
   const landData = await landRes.json();
   const landItem: MidLandItem | undefined = landData.response.body?.items?.item?.[0];

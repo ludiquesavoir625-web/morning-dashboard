@@ -37,6 +37,7 @@ export default function App() {
     checklist,
     isLoading,
     error,
+    isDemo,
     lastUpdated,
     refresh,
     toggleCheckItem,
@@ -89,7 +90,19 @@ export default function App() {
         {/* 시계 */}
         <Clock />
 
-        {/* 로딩 / 에러 / 데이터 */}
+        {/* 데모 모드 안내 배너 */}
+        {isDemo && (
+          <TouchableOpacity style={styles.demoBanner} onPress={refresh}>
+            <Text style={styles.demoBannerText}>
+              ⚠️ API 연결 실패 — 데모 데이터로 표시 중 (탭하여 재시도)
+            </Text>
+            {error && (
+              <Text style={styles.demoBannerDetail}>{error}</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* 로딩 / 데이터 */}
         {isLoading && !current ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.accent} />
@@ -205,6 +218,28 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  // 데모 모드 배너
+  demoBanner: {
+    backgroundColor: 'rgba(210, 153, 34, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(210, 153, 34, 0.3)',
+    borderRadius: 12,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    padding: SPACING.md,
+  },
+  demoBannerText: {
+    fontSize: FONT_SIZES.bodySmall,
+    color: COLORS.accentYellow,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  demoBannerDetail: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
   },
   // API 키 설정 화면
   setupContainer: {
