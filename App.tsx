@@ -22,7 +22,6 @@ import { OutfitCards } from './src/components/OutfitCards';
 import { Checklist } from './src/components/Checklist';
 import { useWeatherData } from './src/hooks/useWeatherData';
 import { COLORS, FONT_SIZES, SPACING } from './src/constants/theme';
-import { API_KEYS } from './src/constants/config';
 
 export default function App() {
   // 화면 꺼짐 방지 (상시 디스플레이)
@@ -42,32 +41,6 @@ export default function App() {
     refresh,
     toggleCheckItem,
   } = useWeatherData();
-
-  // API 키 미설정 안내
-  if (!API_KEYS.weather || API_KEYS.weather === 'your_api_key_here') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
-        <View style={styles.setupContainer}>
-          <Text style={styles.setupEmoji}>🔑</Text>
-          <Text style={styles.setupTitle}>API 키 설정이 필요해요</Text>
-          <Text style={styles.setupDesc}>
-            1. data.go.kr 에서 API 키를 발급받으세요{'\n'}
-            2. 프로젝트 폴더의 .env 파일을 열어주세요{'\n'}
-            3. EXPO_PUBLIC_WEATHER_API_KEY= 뒤에 키를 입력하세요{'\n'}
-            4. EXPO_PUBLIC_AIR_QUALITY_API_KEY= 도 입력하세요{'\n'}
-            5. 앱을 다시 시작하세요
-          </Text>
-          <View style={styles.envBox}>
-            <Text style={styles.envText}>
-              EXPO_PUBLIC_WEATHER_API_KEY=발급받은키{'\n'}
-              EXPO_PUBLIC_AIR_QUALITY_API_KEY=발급받은키
-            </Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -240,43 +213,5 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: SPACING.xs,
-  },
-  // API 키 설정 화면
-  setupContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-  },
-  setupEmoji: {
-    fontSize: 64,
-    marginBottom: SPACING.lg,
-  },
-  setupTitle: {
-    fontSize: FONT_SIZES.cardTitle,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.lg,
-  },
-  setupDesc: {
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
-    lineHeight: 28,
-    textAlign: 'left',
-  },
-  envBox: {
-    marginTop: SPACING.xl,
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  envText: {
-    fontSize: FONT_SIZES.bodySmall,
-    color: COLORS.accentGreen,
-    fontFamily: 'monospace',
-    lineHeight: 24,
   },
 });
