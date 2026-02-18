@@ -120,16 +120,21 @@ export function useWeatherData() {
       const nx = DEFAULT_GRID.nx;
       const ny = DEFAULT_GRID.ny;
 
-      // API 병렬 호출
-      const [current, weekly, airQuality, yesterdayTemp] = await Promise.all([
+      // API 병렬 호출 (각각 실패해도 다른 것은 계속 진행)
+      const [current, weekly, airQuality] = await Promise.all([
         fetchCurrentWeather(nx, ny),
         fetchWeeklyWeather(nx, ny),
-        fetchAirQuality('종로구'),
-        fetchYesterdayTemp(nx, ny),
+        fetchAirQuality('종로구').catch(() => null),
       ]);
 
-      // 어제 대비 비교
-      const yesterday = getYesterdayComparison(current.temperature, yesterdayTemp);
+      // 어제 대비 비교 (실패해도 무시)
+      let yesterday: YesterdayComparison | null = null;
+      try {
+        const yesterdayTemp = await fetchYesterdayTemp(nx, ny);
+        yesterday = getYesterdayComparison(current.temperature, yesterdayTemp);
+      } catch {
+        yesterday = { tempDiff: 0, message: '' };
+      }
 
       // 코디 추천
       const outfitCards = generateOutfitCards(current, airQuality);

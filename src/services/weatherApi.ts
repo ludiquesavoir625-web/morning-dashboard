@@ -426,14 +426,14 @@ export async function fetchWeeklyWeather(
   const today = new Date();
   const result: DailyWeather[] = [];
 
+  // 1) 어제 날씨 (실패해도 무시 - 초단기실황은 최근 1일만 제공)
   try {
-    // 1) 어제 날씨 (초단기실황에서 기온만)
     const yesterdayTemp = await fetchYesterdayTemp(nx, ny);
     const yesterday = addDays(today, -1);
     result.push({
       date: toYYYYMMDD(yesterday),
       dayOfWeek: getDayName(yesterday),
-      tempMax: yesterdayTemp + 3,  // 실황은 특정 시각이므로 근사치
+      tempMax: yesterdayTemp + 3,
       tempMin: yesterdayTemp - 3,
       sky: 'partly_cloudy',
       precipType: 'none',
@@ -441,14 +441,17 @@ export async function fetchWeeklyWeather(
       isToday: false,
       isYesterday: true,
     });
+  } catch (error) {
+    console.log('어제 날씨 조회 스킵 (정상):', error);
+  }
 
-    // 2) 오늘~D+2: 단기예보에서
+  // 2) 오늘~D+2: 단기예보
+  try {
     const fcst = await fetchVilageFcst(nx, ny);
     for (let d = 0; d <= 2; d++) {
       const targetDate = addDays(today, d);
       const dateStr = toYYYYMMDD(targetDate);
 
-      // 단기예보에서 해당 날짜 데이터 추출
       let dayMax = -999, dayMin = 999, daySky: SkyStatus = 'partly_cloudy';
       let dayPrecipType: PrecipType = 'none', dayPrecipProb = 0;
 
@@ -473,7 +476,6 @@ export async function fetchWeeklyWeather(
         }
       }
 
-      // 값이 없으면 오늘 기본값 사용
       if (d === 0 && dayMax === -999) dayMax = fcst.tempMax;
       if (d === 0 && dayMin === 999) dayMin = fcst.tempMin;
 
@@ -489,8 +491,12 @@ export async function fetchWeeklyWeather(
         isYesterday: false,
       });
     }
+  } catch (error) {
+    console.error('단기예보 조회 실패:', error);
+  }
 
-    // 3) D+3 ~ D+5: 중기예보에서
+  // 3) D+3 ~ D+5: 중기예보
+  try {
     const midForecast = await fetchMidForecast();
     for (const mid of midForecast) {
       if (mid.dayOffset <= 5) {
@@ -509,7 +515,7 @@ export async function fetchWeeklyWeather(
       }
     }
   } catch (error) {
-    console.error('주간 날씨 조회 실패:', error);
+    console.error('중기예보 조회 실패:', error);
   }
 
   return result;
