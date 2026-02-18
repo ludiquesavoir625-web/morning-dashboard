@@ -1,71 +1,18 @@
 /**
  * 코디 일러스트 컴포넌트
- * 체감온도 구간별 유아동 코디를 이모지 + 스타일링으로 시각화
- * 추후 AI 생성 이미지로 교체 가능
+ * 체감온도 구간별 유아동 코디 이미지 표시
+ * assets/outfits/ 폴더의 이미지를 사용하고, 없으면 이모지 폴백
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { COLORS, SPACING } from '../constants/theme';
 
 interface Props {
-  temperatureRange: string;  // 'freeze' | 'very_cold' | 'cold' | 'cool' | 'warm' | 'hot'
+  temperatureRange: string;
   precipType?: string;
   dustBad?: boolean;
 }
-
-interface OutfitVisual {
-  emoji: string;
-  backgroundColor: string;
-  borderColor: string;
-  clothingEmojis: string[];
-  label: string;
-}
-
-const OUTFIT_VISUALS: Record<string, OutfitVisual> = {
-  freeze: {
-    emoji: '🧒',
-    backgroundColor: '#1a1a3e',
-    borderColor: '#4a3f8a',
-    clothingEmojis: ['🧥', '🧣', '🧤', '👢', '🧢'],
-    label: '완전무장',
-  },
-  very_cold: {
-    emoji: '🧒',
-    backgroundColor: '#1a2a4a',
-    borderColor: '#3a5a8a',
-    clothingEmojis: ['🧥', '🧣', '👖', '🧢'],
-    label: '따뜻하게',
-  },
-  cold: {
-    emoji: '🧒',
-    backgroundColor: '#1a3a4a',
-    borderColor: '#3a7a8a',
-    clothingEmojis: ['🧥', '👕', '👖', '🧣'],
-    label: '쌀쌀한 날',
-  },
-  cool: {
-    emoji: '🧒',
-    backgroundColor: '#1a4a3a',
-    borderColor: '#3a8a6a',
-    clothingEmojis: ['🧥', '👕', '👖'],
-    label: '가벼운 겉옷',
-  },
-  warm: {
-    emoji: '🧒',
-    backgroundColor: '#3a4a1a',
-    borderColor: '#6a8a3a',
-    clothingEmojis: ['👕', '👖'],
-    label: '편안하게',
-  },
-  hot: {
-    emoji: '🧒',
-    backgroundColor: '#4a3a1a',
-    borderColor: '#8a6a3a',
-    clothingEmojis: ['👕', '🩳', '🧢'],
-    label: '시원하게',
-  },
-};
 
 /** 체감온도 → 범위 키 */
 export function feelsLikeToRange(feelsLike: number): string {
@@ -77,116 +24,107 @@ export function feelsLikeToRange(feelsLike: number): string {
   return 'hot';
 }
 
+// 이미지 매핑 (static require)
+const OUTFIT_IMAGES: Record<string, ImageSourcePropType> = {
+  freeze: require('../../assets/outfits/outfit_freeze.png'),
+  very_cold: require('../../assets/outfits/outfit_very_cold.png'),
+  cold: require('../../assets/outfits/outfit_cold.png'),
+  cool: require('../../assets/outfits/outfit_cool.png'),
+  warm: require('../../assets/outfits/outfit_warm.png'),
+  hot: require('../../assets/outfits/outfit_hot.png'),
+};
+
+// 이모지 폴백 (이미지가 없을 때)
+const OUTFIT_FALLBACK: Record<string, { emoji: string; bg: string }> = {
+  freeze: { emoji: '🧥🧣🧤👢🧢', bg: '#1a1a3e' },
+  very_cold: { emoji: '🧥🧣👖🧢', bg: '#1a2a4a' },
+  cold: { emoji: '🧥👕👖🧣', bg: '#1a3a4a' },
+  cool: { emoji: '🧥👕👖', bg: '#1a4a3a' },
+  warm: { emoji: '👕👖', bg: '#3a4a1a' },
+  hot: { emoji: '👕🩳🧢', bg: '#4a3a1a' },
+};
+
 export function OutfitIllustration({ temperatureRange, precipType, dustBad }: Props) {
-  const visual = OUTFIT_VISUALS[temperatureRange] || OUTFIT_VISUALS.cold;
+  const imageSource = OUTFIT_IMAGES[temperatureRange];
+  const fallback = OUTFIT_FALLBACK[temperatureRange] || OUTFIT_FALLBACK.cold;
 
-  return (
-    <View style={[styles.container, { backgroundColor: visual.backgroundColor, borderColor: visual.borderColor }]}>
-      {/* 아이 캐릭터 */}
-      <View style={styles.characterArea}>
-        <Text style={styles.character}>{visual.emoji}</Text>
-
-        {/* 옷 이모지들이 캐릭터 주변에 배치 */}
-        <View style={styles.clothingCircle}>
-          {visual.clothingEmojis.map((emoji, idx) => {
-            const angle = (idx / visual.clothingEmojis.length) * 2 * Math.PI - Math.PI / 2;
-            const radius = 70;
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-            return (
-              <View
-                key={idx}
-                style={[
-                  styles.clothingItem,
-                  {
-                    transform: [{ translateX: x }, { translateY: y }],
-                  },
-                ]}
-              >
-                <Text style={styles.clothingEmoji}>{emoji}</Text>
+  // 이미지가 있으면 이미지 표시
+  if (imageSource) {
+    return (
+      <View style={styles.container}>
+        <Image
+          source={imageSource}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        {/* 추가 아이콘 (비/눈/미세먼지) 오버레이 */}
+        {(precipType === 'rain' || precipType === 'shower' || precipType === 'snow' || precipType === 'rain_snow' || dustBad) && (
+          <View style={styles.overlayRow}>
+            {(precipType === 'rain' || precipType === 'shower') && (
+              <View style={styles.overlayBadge}>
+                <Text style={styles.overlayEmoji}>☂️</Text>
               </View>
-            );
-          })}
-        </View>
+            )}
+            {(precipType === 'snow' || precipType === 'rain_snow') && (
+              <View style={styles.overlayBadge}>
+                <Text style={styles.overlayEmoji}>⛄</Text>
+              </View>
+            )}
+            {dustBad && (
+              <View style={styles.overlayBadge}>
+                <Text style={styles.overlayEmoji}>😷</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
+    );
+  }
 
-      {/* 추가 아이콘 (비/눈/미세먼지) */}
-      <View style={styles.extrasRow}>
-        {precipType === 'rain' || precipType === 'shower' ? (
-          <View style={styles.extraBadge}>
-            <Text style={styles.extraEmoji}>☂️</Text>
-          </View>
-        ) : null}
-        {precipType === 'snow' || precipType === 'rain_snow' ? (
-          <View style={styles.extraBadge}>
-            <Text style={styles.extraEmoji}>⛄</Text>
-          </View>
-        ) : null}
-        {dustBad ? (
-          <View style={styles.extraBadge}>
-            <Text style={styles.extraEmoji}>😷</Text>
-          </View>
-        ) : null}
-      </View>
+  // 폴백: 이모지 표시
+  return (
+    <View style={[styles.container, styles.fallbackContainer, { backgroundColor: fallback.bg }]}>
+      <Text style={styles.fallbackEmoji}>{fallback.emoji}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: 200,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 280,
+    borderRadius: 16,
     overflow: 'hidden',
+    position: 'relative',
   },
-  characterArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 200,
-    height: 200,
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
   },
-  character: {
-    fontSize: 64,
-    position: 'absolute',
-    zIndex: 2,
-  },
-  clothingCircle: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clothingItem: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clothingEmoji: {
-    fontSize: 22,
-  },
-  extrasRow: {
+  overlayRow: {
     position: 'absolute',
     bottom: 10,
     right: 10,
     flexDirection: 'row',
     gap: 6,
   },
-  extraBadge: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 14,
-    width: 28,
-    height: 28,
+  overlayBadge: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  extraEmoji: {
-    fontSize: 16,
+  overlayEmoji: {
+    fontSize: 18,
+  },
+  fallbackContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fallbackEmoji: {
+    fontSize: 48,
+    letterSpacing: 8,
   },
 });
