@@ -1,6 +1,8 @@
 /**
  * 아침 등원 대시보드
  * 유아동(만 1~4세) 어린이집 등원을 위한 상시 디스플레이 날씨·코디·준비물 앱
+ *
+ * 레이아웃: 컴팩트 헤더(시계+날씨+7일) → 코디카드(메인) → 체크리스트(하단)
  */
 
 import React from 'react';
@@ -15,13 +17,11 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { Clock } from './src/components/Clock';
-import { WeatherCurrent } from './src/components/WeatherCurrent';
-import { WeatherWeekly } from './src/components/WeatherWeekly';
+import { CompactHeader } from './src/components/CompactHeader';
 import { OutfitCards } from './src/components/OutfitCards';
 import { Checklist } from './src/components/Checklist';
 import { useWeatherData } from './src/hooks/useWeatherData';
-import { COLORS, FONT_SIZES, SPACING } from './src/constants/theme';
+import { COLORS, SPACING } from './src/constants/theme';
 
 export default function App() {
   // 화면 꺼짐 방지 (상시 디스플레이)
@@ -42,6 +42,12 @@ export default function App() {
     toggleCheckItem,
   } = useWeatherData();
 
+  // 미세먼지 나쁨 여부
+  const dustBad = airQuality
+    ? (airQuality.pm10Grade === 'bad' || airQuality.pm10Grade === 'very_bad' ||
+       airQuality.pm25Grade === 'bad' || airQuality.pm25Grade === 'very_bad')
+    : false;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -50,75 +56,47 @@ export default function App() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>서울 · 어린이집 등원 대시보드</Text>
-          {lastUpdated && (
-            <Text style={styles.headerUpdated}>
-              {lastUpdated.getHours()}:{String(lastUpdated.getMinutes()).padStart(2, '0')} 갱신
-            </Text>
-          )}
-        </View>
-
-        {/* 시계 */}
-        <Clock />
-
         {/* 데모 모드 안내 배너 */}
         {isDemo && (
           <TouchableOpacity style={styles.demoBanner} onPress={refresh}>
             <Text style={styles.demoBannerText}>
-              ⚠️ API 연결 실패 — 데모 데이터로 표시 중 (탭하여 재시도)
+              ⚠️ 데모 모드 (탭하여 재시도)
             </Text>
-            {error && (
-              <Text style={styles.demoBannerDetail}>{error}</Text>
-            )}
           </TouchableOpacity>
         )}
 
-        {/* 로딩 / 데이터 */}
+        {/* 로딩 */}
         {isLoading && !current ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.accent} />
             <Text style={styles.loadingText}>날씨 정보를 불러오는 중...</Text>
           </View>
-        ) : error && !current ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorEmoji}>⚠️</Text>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={refresh}>
-              <Text style={styles.retryText}>다시 시도</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
           <>
-            {/* 오늘 날씨 */}
-            {current && airQuality && yesterday && (
-              <WeatherCurrent
-                weather={current}
-                airQuality={airQuality}
-                yesterday={yesterday}
+            {/* 상단: 시계 + 오늘 날씨 + 7일 비교 (하나의 카드) */}
+            <CompactHeader
+              weather={current}
+              airQuality={airQuality}
+              yesterday={yesterday}
+              weekly={weekly}
+            />
+
+            {/* 메인: 코디 추천 카드 (스와이프) */}
+            {outfitCards.length > 0 && current && (
+              <OutfitCards
+                cards={outfitCards}
+                feelsLike={current.feelsLike}
+                precipType={current.precipType}
+                dustBad={dustBad}
               />
             )}
 
-            {/* 7일 비교 */}
-            {weekly.length > 0 && (
-              <WeatherWeekly weekly={weekly} />
-            )}
-
-            {/* 코디 추천 */}
-            {outfitCards.length > 0 && (
-              <OutfitCards cards={outfitCards} />
-            )}
-
-            {/* 체크리스트 */}
+            {/* 하단: 체크리스트 (컴팩트) */}
             {checklist.length > 0 && (
               <Checklist items={checklist} onToggle={toggleCheckItem} />
             )}
           </>
         )}
-
-        {/* 하단 여백 */}
-        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,85 +111,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: SPACING.md,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.bodySmall,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  headerUpdated: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textMuted,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.lg,
   },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 120,
   },
   loadingText: {
-    fontSize: FONT_SIZES.body,
+    fontSize: 16,
     color: COLORS.textSecondary,
     marginTop: SPACING.lg,
   },
-  errorContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: SPACING.xl,
-  },
-  errorEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  errorText: {
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  retryButton: {
-    marginTop: SPACING.lg,
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-  },
-  retryText: {
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-  },
-  bottomSpacer: {
-    height: 40,
-  },
-  // 데모 모드 배너
   demoBanner: {
-    backgroundColor: 'rgba(210, 153, 34, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(210, 153, 34, 0.3)',
-    borderRadius: 12,
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
-    padding: SPACING.md,
+    backgroundColor: 'rgba(210, 153, 34, 0.12)',
+    borderRadius: 8,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.xs,
+    paddingVertical: 6,
+    paddingHorizontal: SPACING.md,
   },
   demoBannerText: {
-    fontSize: FONT_SIZES.bodySmall,
+    fontSize: 12,
     color: COLORS.accentYellow,
     textAlign: 'center',
-    fontWeight: '600',
-  },
-  demoBannerDetail: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
   },
 });

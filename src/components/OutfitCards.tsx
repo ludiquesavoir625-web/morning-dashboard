@@ -1,10 +1,10 @@
 /**
- * 코디 추천 카드 컴포넌트
- * 좌우 스와이프 가능한 카드 UI (2~3장)
- * 화면의 메인 영역을 차지
+ * 코디 추천 카드 (메인 영역)
+ * 화면의 가장 큰 영역을 차지하는 스와이프 카드
+ * 일러스트 이미지 + 코디 정보
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,17 +15,21 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../constants/theme';
+import { OutfitIllustration, feelsLikeToRange } from './OutfitIllustration';
 import type { OutfitCard } from '../types/outfit';
 
 interface Props {
   cards: OutfitCard[];
+  feelsLike: number;
+  precipType?: string;
+  dustBad?: boolean;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_MARGIN = SPACING.lg;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_MARGIN * 2;
+const CARD_PADDING = SPACING.md;
+const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2;
 
-export function OutfitCards({ cards }: Props) {
+export function OutfitCards({ cards, feelsLike, precipType, dustBad }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -36,10 +40,25 @@ export function OutfitCards({ cards }: Props) {
 
   if (cards.length === 0) return null;
 
+  const tempRange = feelsLikeToRange(feelsLike);
+
+  // 각 카드별 온도 범위 (대안 카드는 한 단계 위/아래)
+  const cardTempRanges = cards.map((card) => {
+    if (card.id === 'warmer') {
+      const ranges = ['freeze', 'very_cold', 'cold', 'cool', 'warm', 'hot'];
+      const idx = ranges.indexOf(tempRange);
+      return idx > 0 ? ranges[idx - 1] : tempRange;
+    }
+    if (card.id === 'cooler') {
+      const ranges = ['freeze', 'very_cold', 'cold', 'cool', 'warm', 'hot'];
+      const idx = ranges.indexOf(tempRange);
+      return idx < ranges.length - 1 ? ranges[idx + 1] : tempRange;
+    }
+    return tempRange;
+  });
+
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>👶 코디 추천</Text>
-
       <ScrollView
         horizontal
         pagingEnabled
@@ -51,10 +70,17 @@ export function OutfitCards({ cards }: Props) {
       >
         {cards.map((card, idx) => (
           <View key={card.id} style={styles.card}>
-            {/* 카드 헤더 */}
+            {/* 일러스트 이미지 영역 */}
+            <OutfitIllustration
+              temperatureRange={cardTempRanges[idx]}
+              precipType={precipType}
+              dustBad={dustBad}
+            />
+
+            {/* 카드 제목 */}
             <Text style={styles.cardTitle}>{card.title}</Text>
 
-            {/* 착장 아이템 */}
+            {/* 착장 아이템 (가로 스크롤) */}
             <View style={styles.itemsRow}>
               {card.items.map((item, i) => (
                 <View key={i} style={styles.itemChip}>
@@ -64,32 +90,20 @@ export function OutfitCards({ cards }: Props) {
               ))}
             </View>
 
-            {/* 추가 아이템 (날씨 조건) */}
+            {/* 추가 필수 아이템 */}
             {card.extras.length > 0 && (
-              <View style={styles.extrasSection}>
-                <Text style={styles.extrasLabel}>⚡ 필수 추가</Text>
-                <View style={styles.itemsRow}>
-                  {card.extras.map((item, i) => (
-                    <View key={i} style={[styles.itemChip, styles.extraChip]}>
-                      <Text style={styles.itemEmoji}>{item.emoji}</Text>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                    </View>
-                  ))}
-                </View>
+              <View style={styles.extrasRow}>
+                {card.extras.map((item, i) => (
+                  <View key={i} style={styles.extraChip}>
+                    <Text style={styles.itemEmoji}>{item.emoji}</Text>
+                    <Text style={styles.extraName}>{item.name}</Text>
+                  </View>
+                ))}
               </View>
             )}
 
             {/* 추천 이유 */}
             <Text style={styles.reason}>{card.reason}</Text>
-
-            {/* 태그 */}
-            <View style={styles.tagsRow}>
-              {card.tags.map((tag, i) => (
-                <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
-                </View>
-              ))}
-            </View>
           </View>
         ))}
       </ScrollView>
@@ -112,94 +126,79 @@ export function OutfitCards({ cards }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: SPACING.sm,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.sectionTitle,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-    marginHorizontal: SPACING.lg,
+    flex: 1,
+    marginVertical: SPACING.xs,
   },
   scrollContent: {
-    paddingHorizontal: CARD_MARGIN,
+    paddingHorizontal: CARD_PADDING,
   },
   card: {
     width: CARD_WIDTH,
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    padding: SPACING.lg,
+    padding: SPACING.md,
   },
   cardTitle: {
-    fontSize: FONT_SIZES.cardTitle,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   itemsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
   itemChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  extraChip: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(248, 81, 73, 0.3)',
-  },
-  itemEmoji: {
-    fontSize: 18,
-    marginRight: SPACING.xs,
-  },
-  itemName: {
-    fontSize: FONT_SIZES.bodySmall,
-    color: COLORS.textPrimary,
-  },
-  extrasSection: {
-    marginTop: SPACING.md,
-  },
-  extrasLabel: {
-    fontSize: FONT_SIZES.bodySmall,
-    fontWeight: '600',
-    color: COLORS.accentWarm,
-    marginBottom: SPACING.xs,
-  },
-  reason: {
-    fontSize: FONT_SIZES.bodySmall,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.md,
-    lineHeight: 20,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-    marginTop: SPACING.md,
-  },
-  tag: {
-    backgroundColor: 'rgba(88, 166, 255, 0.1)',
-    borderRadius: 12,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
+    paddingVertical: 6,
     paddingHorizontal: SPACING.sm,
   },
-  tagText: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.accent,
+  itemEmoji: {
+    fontSize: 15,
+    marginRight: 4,
+  },
+  itemName: {
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  extrasRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+  },
+  extraChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(248, 81, 73, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 81, 73, 0.25)',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: SPACING.sm,
+  },
+  extraName: {
+    fontSize: 13,
+    color: COLORS.accentWarm,
+    fontWeight: '600',
+  },
+  reason: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    lineHeight: 18,
   },
   indicators: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     gap: SPACING.xs,
   },
   dot: {
@@ -213,7 +212,7 @@ const styles = StyleSheet.create({
     width: 18,
   },
   swipeHint: {
-    fontSize: FONT_SIZES.caption,
+    fontSize: 11,
     color: COLORS.textMuted,
     marginLeft: SPACING.sm,
   },
