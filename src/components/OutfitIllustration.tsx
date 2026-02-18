@@ -1,12 +1,10 @@
 /**
  * 코디 일러스트 컴포넌트
- * 체감온도 구간별 유아동 코디 이미지 표시
- * assets/outfits/ 폴더의 이미지를 사용하고, 없으면 이모지 폴백
+ * 체감온도 구간별 유아동 코디 카드 표시
  */
 
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, ImageSourcePropType } from 'react-native';
-import { COLORS, SPACING } from '../constants/theme';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface Props {
   temperatureRange: string;
@@ -24,24 +22,14 @@ export function feelsLikeToRange(feelsLike: number): string {
   return 'hot';
 }
 
-// 이미지 매핑 (static require)
-const OUTFIT_IMAGES: Record<string, ImageSourcePropType> = {
-  freeze: require('../../assets/outfits/outfit_freeze.png'),
-  very_cold: require('../../assets/outfits/outfit_very_cold.png'),
-  cold: require('../../assets/outfits/outfit_cold.png'),
-  cool: require('../../assets/outfits/outfit_cool.png'),
-  warm: require('../../assets/outfits/outfit_warm.png'),
-  hot: require('../../assets/outfits/outfit_hot.png'),
-};
-
-// 이모지 폴백 (이미지가 없을 때 또는 placeholder일 때)
-const OUTFIT_FALLBACK: Record<string, { emoji: string; bg: string }> = {
-  freeze: { emoji: '🧥🧣🧤👢🧢', bg: '#1a1a3e' },
-  very_cold: { emoji: '🧥🧣👖🧢', bg: '#1a2a4a' },
-  cold: { emoji: '🧥👕👖🧣', bg: '#1a3a4a' },
-  cool: { emoji: '🧥👕👖', bg: '#1a4a3a' },
-  warm: { emoji: '👕👖', bg: '#3a4a1a' },
-  hot: { emoji: '👕🩳🧢', bg: '#4a3a1a' },
+// 온도 구간별 이모지 + 색상 + 라벨
+const OUTFIT_DISPLAY: Record<string, { emoji: string; label: string; bg: string; items: string }> = {
+  freeze: { emoji: '🧥', label: '완전 방한', bg: '#2d1b69', items: '패딩 · 목도리 · 장갑 · 귀마개 · 방한부츠' },
+  very_cold: { emoji: '🧥', label: '따뜻하게', bg: '#1b3d6e', items: '두꺼운 패딩 · 목도리 · 기모바지 · 털모자' },
+  cold: { emoji: '🧶', label: '겉옷 필수', bg: '#1b5a6e', items: '자켓 · 니트 · 긴바지 · 목도리' },
+  cool: { emoji: '🧥', label: '가벼운 겉옷', bg: '#1b6e5a', items: '후드집업 · 긴팔 · 긴바지' },
+  warm: { emoji: '👕', label: '편하게', bg: '#4a6e1b', items: '긴팔 · 면바지 · 가벼운 겉옷' },
+  hot: { emoji: '👕', label: '시원하게', bg: '#6e5a1b', items: '반팔 · 반바지 · 모자 · 샌들' },
 };
 
 // 날씨 오버레이 배지
@@ -64,28 +52,13 @@ function WeatherOverlay({ precipType, dustBad }: { precipType?: string; dustBad?
 }
 
 export function OutfitIllustration({ temperatureRange, precipType, dustBad }: Props) {
-  const [imageError, setImageError] = useState(false);
-  const imageSource = OUTFIT_IMAGES[temperatureRange];
-  const fallback = OUTFIT_FALLBACK[temperatureRange] || OUTFIT_FALLBACK.cold;
-
-  // 이미지 로드 실패 또는 placeholder(1x1)이면 이모지 폴백
-  if (!imageSource || imageError) {
-    return (
-      <View style={[styles.container, styles.fallbackContainer, { backgroundColor: fallback.bg }]}>
-        <Text style={styles.fallbackEmoji}>{fallback.emoji}</Text>
-        <WeatherOverlay precipType={precipType} dustBad={dustBad} />
-      </View>
-    );
-  }
+  const display = OUTFIT_DISPLAY[temperatureRange] || OUTFIT_DISPLAY.cold;
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={imageSource}
-        style={styles.image}
-        resizeMode="cover"
-        onError={() => setImageError(true)}
-      />
+    <View style={[styles.container, { backgroundColor: display.bg }]}>
+      <Text style={styles.bigEmoji}>{display.emoji}</Text>
+      <Text style={styles.label}>{display.label}</Text>
+      <Text style={styles.items}>{display.items}</Text>
       <WeatherOverlay precipType={precipType} dustBad={dustBad} />
     </View>
   );
@@ -97,11 +70,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
+  bigEmoji: {
+    fontSize: 72,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  items: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
   },
   overlayRow: {
     position: 'absolute',
@@ -120,13 +106,5 @@ const styles = StyleSheet.create({
   },
   overlayEmoji: {
     fontSize: 18,
-  },
-  fallbackContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fallbackEmoji: {
-    fontSize: 48,
-    letterSpacing: 8,
   },
 });
