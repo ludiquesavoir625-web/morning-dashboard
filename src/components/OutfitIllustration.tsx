@@ -4,7 +4,7 @@
  * assets/outfits/ 폴더의 이미지를 사용하고, 없으면 이모지 폴백
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { COLORS, SPACING } from '../constants/theme';
 
@@ -34,7 +34,7 @@ const OUTFIT_IMAGES: Record<string, ImageSourcePropType> = {
   hot: require('../../assets/outfits/outfit_hot.png'),
 };
 
-// 이모지 폴백 (이미지가 없을 때)
+// 이모지 폴백 (이미지가 없을 때 또는 placeholder일 때)
 const OUTFIT_FALLBACK: Record<string, { emoji: string; bg: string }> = {
   freeze: { emoji: '🧥🧣🧤👢🧢', bg: '#1a1a3e' },
   very_cold: { emoji: '🧥🧣👖🧢', bg: '#1a2a4a' },
@@ -44,47 +44,49 @@ const OUTFIT_FALLBACK: Record<string, { emoji: string; bg: string }> = {
   hot: { emoji: '👕🩳🧢', bg: '#4a3a1a' },
 };
 
+// 날씨 오버레이 배지
+function WeatherOverlay({ precipType, dustBad }: { precipType?: string; dustBad?: boolean }) {
+  const showOverlay = precipType === 'rain' || precipType === 'shower' || precipType === 'snow' || precipType === 'rain_snow' || dustBad;
+  if (!showOverlay) return null;
+  return (
+    <View style={styles.overlayRow}>
+      {(precipType === 'rain' || precipType === 'shower') && (
+        <View style={styles.overlayBadge}><Text style={styles.overlayEmoji}>☂️</Text></View>
+      )}
+      {(precipType === 'snow' || precipType === 'rain_snow') && (
+        <View style={styles.overlayBadge}><Text style={styles.overlayEmoji}>⛄</Text></View>
+      )}
+      {dustBad && (
+        <View style={styles.overlayBadge}><Text style={styles.overlayEmoji}>😷</Text></View>
+      )}
+    </View>
+  );
+}
+
 export function OutfitIllustration({ temperatureRange, precipType, dustBad }: Props) {
+  const [imageError, setImageError] = useState(false);
   const imageSource = OUTFIT_IMAGES[temperatureRange];
   const fallback = OUTFIT_FALLBACK[temperatureRange] || OUTFIT_FALLBACK.cold;
 
-  // 이미지가 있으면 이미지 표시
-  if (imageSource) {
+  // 이미지 로드 실패 또는 placeholder(1x1)이면 이모지 폴백
+  if (!imageSource || imageError) {
     return (
-      <View style={styles.container}>
-        <Image
-          source={imageSource}
-          style={styles.image}
-          resizeMode="cover"
-        />
-        {/* 추가 아이콘 (비/눈/미세먼지) 오버레이 */}
-        {(precipType === 'rain' || precipType === 'shower' || precipType === 'snow' || precipType === 'rain_snow' || dustBad) && (
-          <View style={styles.overlayRow}>
-            {(precipType === 'rain' || precipType === 'shower') && (
-              <View style={styles.overlayBadge}>
-                <Text style={styles.overlayEmoji}>☂️</Text>
-              </View>
-            )}
-            {(precipType === 'snow' || precipType === 'rain_snow') && (
-              <View style={styles.overlayBadge}>
-                <Text style={styles.overlayEmoji}>⛄</Text>
-              </View>
-            )}
-            {dustBad && (
-              <View style={styles.overlayBadge}>
-                <Text style={styles.overlayEmoji}>😷</Text>
-              </View>
-            )}
-          </View>
-        )}
+      <View style={[styles.container, styles.fallbackContainer, { backgroundColor: fallback.bg }]}>
+        <Text style={styles.fallbackEmoji}>{fallback.emoji}</Text>
+        <WeatherOverlay precipType={precipType} dustBad={dustBad} />
       </View>
     );
   }
 
-  // 폴백: 이모지 표시
   return (
-    <View style={[styles.container, styles.fallbackContainer, { backgroundColor: fallback.bg }]}>
-      <Text style={styles.fallbackEmoji}>{fallback.emoji}</Text>
+    <View style={styles.container}>
+      <Image
+        source={imageSource}
+        style={styles.image}
+        resizeMode="cover"
+        onError={() => setImageError(true)}
+      />
+      <WeatherOverlay precipType={precipType} dustBad={dustBad} />
     </View>
   );
 }
