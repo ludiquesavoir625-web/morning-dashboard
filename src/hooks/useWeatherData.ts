@@ -155,7 +155,7 @@ export function useWeatherData() {
         lastUpdated: new Date(),
       });
     } catch (err) {
-      console.error('데이터 로드 실패:', err);
+      console.log('데이터 로드 실패 → 데모 모드:', err);
 
       // API 실패 시 데모 데이터로 폴백
       const { demoCurrent, demoAir, demoWeekly, demoYesterday } = getDemoData();

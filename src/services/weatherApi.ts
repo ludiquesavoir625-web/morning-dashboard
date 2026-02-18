@@ -371,42 +371,49 @@ export async function fetchMidForecast(): Promise<MidForecastDay[]> {
       ? toYYYYMMDD(now) + '0600'
       : toYYYYMMDD(now) + '1800';
 
-  // 중기기온예보 (serviceKey 인코딩 없이 전달)
-  const taUrl = `${WEATHER_API.midTa}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.taRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
-  const taRes = await fetch(taUrl);
-  const taData: MidTaResponse = await taRes.json();
-  const taItem = taData.response.body?.items?.item?.[0];
+  try {
+    // 중기기온예보
+    const taUrl = `${WEATHER_API.midTa}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.taRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
+    const taRes = await fetch(taUrl);
+    const taText = await taRes.text();
+    const taData: MidTaResponse = JSON.parse(taText);
+    const taItem = taData.response.body?.items?.item?.[0];
 
-  // 중기육상예보 (serviceKey 인코딩 없이 전달)
-  const landUrl = `${WEATHER_API.midLandFcst}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.landRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
-  const landRes = await fetch(landUrl);
-  const landData = await landRes.json();
-  const landItem: MidLandItem | undefined = landData.response.body?.items?.item?.[0];
+    // 중기육상예보
+    const landUrl = `${WEATHER_API.midLandFcst}?serviceKey=${API_KEYS.weather}&dataType=JSON&regId=${MID_FORECAST_REGION.landRegId}&tmFc=${tmFc}&numOfRows=1&pageNo=1`;
+    const landRes = await fetch(landUrl);
+    const landText = await landRes.text();
+    const landData = JSON.parse(landText);
+    const landItem: MidLandItem | undefined = landData.response.body?.items?.item?.[0];
 
-  const result: MidForecastDay[] = [];
+    const result: MidForecastDay[] = [];
 
-  if (taItem && landItem) {
-    for (let d = 3; d <= 7; d++) {
-      const key = d as 3 | 4 | 5 | 6 | 7;
-      const tempMin = taItem[`taMin${key}` as keyof MidTaItem] as number;
-      const tempMax = taItem[`taMax${key}` as keyof MidTaItem] as number;
-      const wf = landItem[`wf${key}Pm` as keyof MidLandItem] as string;
-      const rnSt = Math.max(
-        landItem[`rnSt${key}Am` as keyof MidLandItem] as number,
-        landItem[`rnSt${key}Pm` as keyof MidLandItem] as number,
-      );
+    if (taItem && landItem) {
+      for (let d = 3; d <= 7; d++) {
+        const key = d as 3 | 4 | 5 | 6 | 7;
+        const tempMin = taItem[`taMin${key}` as keyof MidTaItem] as number;
+        const tempMax = taItem[`taMax${key}` as keyof MidTaItem] as number;
+        const wf = landItem[`wf${key}Pm` as keyof MidLandItem] as string;
+        const rnSt = Math.max(
+          landItem[`rnSt${key}Am` as keyof MidLandItem] as number,
+          landItem[`rnSt${key}Pm` as keyof MidLandItem] as number,
+        );
 
-      result.push({
-        dayOffset: d,
-        tempMin,
-        tempMax,
-        sky: midWeatherToSky(wf),
-        precipProb: rnSt,
-      });
+        result.push({
+          dayOffset: d,
+          tempMin,
+          tempMax,
+          sky: midWeatherToSky(wf),
+          precipProb: rnSt,
+        });
+      }
     }
-  }
 
-  return result;
+    return result;
+  } catch {
+    // 중기예보 실패 시 빈 배열 반환 (앱은 정상 작동)
+    return [];
+  }
 }
 
 /** 중기예보 날씨 문자열 → SkyStatus 변환 */
@@ -492,7 +499,7 @@ export async function fetchWeeklyWeather(
       });
     }
   } catch (error) {
-    console.error('단기예보 조회 실패:', error);
+    console.log('단기예보 조회 스킵:', error);
   }
 
   // 3) D+3 ~ D+5: 중기예보
@@ -515,7 +522,7 @@ export async function fetchWeeklyWeather(
       }
     }
   } catch (error) {
-    console.error('중기예보 조회 실패:', error);
+    console.log('중기예보 조회 스킵:', error);
   }
 
   return result;
